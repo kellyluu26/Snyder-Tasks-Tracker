@@ -1,37 +1,462 @@
-const K='glowlab_protocols_v1',L='glowlab_logs_v1';
-const uid=()=>crypto.randomUUID();
-const samples=[
-{title:'ZymoPURE Maxiprep — Plasmid DNA Purification',category:'Plasmid Purification',materials:'ZymoPURE P1, P2, P3\nBinding Buffer\nWash 1\nWash 2\nV-PX Column Assembly\nElution Buffer',notes:'Based on the photographed maxiprep pages. Confirm all volumes, times, centrifugation settings, and handwritten notes against the approved SOP before use.',steps:['Pellet the bacterial culture and discard supernatant.','Resuspend the pellet completely in cold P1.','Add P2 and mix immediately by gentle inversion. Do not vortex.','Add P3 and invert until neutralization is complete.','Clarify the lysate using the syringe filter assembly.','Add binding buffer to the cleared lysate and mix.','Load onto the V-PX column assembly.','Perform Wash 1 and Wash 2 steps.','Dry-spin and elute purified plasmid DNA.']},
-{title:'E. coli Transformation',category:'Transformation',materials:'Competent E. coli cells\nPlasmid DNA\nSOC medium\nLB agar plate\nAppropriate antibiotic\nSterile beads',notes:'The photographed protocol uses DH5α and a heat-shock workflow. Verify the competent-cell supplier instructions and local biosafety SOP.',steps:['Chill plasmid DNA and thaw competent cells on ice.','Add competent cells to the chilled plasmid tube.','Mix gently without vortexing.','Incubate on ice.','Heat shock, then return to ice.','Add SOC medium.','Recover cells under the specified incubation conditions.','Plate onto the correctly labelled selective agar plate.']},
-{title:'Making LB Broth',category:'Media Preparation',materials:'LB broth powder\nddH2O\n1 L glass bottle',notes:'The photographed local copy notes that pH adjustment is not needed. Confirm this with the lab manager before relying on it.',steps:['Collect and label a 1 L glass bottle.','Measure water into the bottle.','Add the required LB broth powder.','Swirl to mix.','Autoclave and cool on the bench.']},
-{title:'Making LB Agar Plates',category:'Media Preparation',materials:'LB agar powder\nddH2O\nAntibiotic if required\nPetri dishes\nStir bar',notes:'The photographed protocol indicates adding antibiotic after the medium cools. Verify antibiotic identity, concentration, and heat sensitivity.',steps:['Prepare labelled glass bottles and add stir bars.','Measure water and LB agar powder.','Mix gently.','Autoclave and cool while stirring.','Add antibiotic after cooling when required.','Pour agar into sterile Petri dishes.','Allow plates to solidify and store agar-side up.']},
-{title:'ZymoPURE Miniprep — Plasmid DNA Purification',category:'Plasmid Purification',materials:'ZymoPURE P1, P2, P3\nBinding Buffer\nWash 1\nWash 2\nII-PX Spin Column\nElution Buffer',notes:'Organized from the photographed miniprep centrifugation pages. Preserve the current manufacturer pages as the source of truth.',steps:['Pellet bacterial culture and discard supernatant.','Resuspend the pellet in cold P1.','Add P2 and mix by gentle inversion.','Add P3 and invert until neutralization is complete.','Centrifuge the neutralized lysate.','Transfer the required supernatant volume.','Add binding buffer and mix.','Load onto the spin column.','Perform Wash 1 and Wash 2 steps.','Dry-spin and elute DNA.']},
-{title:'Zymo DNA Gel Purification',category:'DNA Cleanup',materials:'DNA Wash Buffer\nADB\nZymo-Spin Column\nCollection Tube\nDNA Elution Buffer',notes:'The attached protocol shows a gel-slice dissolution and spin-column cleanup workflow. Confirm current kit ratios and incubation conditions.',steps:['Excise the desired DNA fragment from the gel.','Add the required volume of agarose dissolving buffer.','Incubate until the gel slice is completely dissolved.','Transfer the melted gel solution to a spin column.','Centrifuge and discard flow-through.','Wash the column and repeat the wash.','Add elution buffer and centrifuge to recover DNA.']},
-{title:'Kanamycin Stock and Working Solutions',category:'Reagent Preparation',materials:'Kanamycin sulfate\nddH2O\n0.22 µm filter\nSterile bottle and tubes',notes:'The photographed page includes a 50 mg/mL stock and 50 µg/mL working solution. Confirm local storage, labeling, and sterility requirements.',steps:['Prepare kanamycin stock at the documented concentration.','Bring to final volume and mix.','Filter sterilize.','Aliquot, label, and store per lab SOP.','Prepare working solution by dilution of the stock.']},
-{title:'Target Guide Sequence Cloning',category:'CRISPR / Cloning',materials:'Target oligos\nLentiviral CRISPR plasmid\nBsmBI\nFastAP\nT4 ligation buffer\nT4 PNK\nQuick Ligase\nCompetent bacteria',notes:'Based on the photographed Zhang Lab GeCKO guide-cloning page with handwritten local changes. Confirm vector, strain, program, and all annotations before use.',steps:['Design and order target oligos with the required overhangs.','Digest and dephosphorylate the vector.','Gel-purify the correct vector band.','Phosphorylate and anneal oligo pairs.','Dilute annealed oligos as required.','Set up ligation and vector-only control.','Transform into the appropriate bacterial strain.']},
-{title:'TransIT-293 Plasmid DNA Transfection',category:'Cell Culture',materials:'HEK 293 cells\nHigh-purity plasmid DNA\nTransIT-293 reagent\nSerum-free medium\nComplete growth medium',notes:'Use the current full manufacturer protocol and optimize for the specific HEK 293 subtype and vessel size.',steps:['Confirm healthy cells and suitable confluence.','Use purified, low-endotoxin DNA.','Prepare reagent–DNA complexes in serum-free medium.','Avoid serum and antibiotics during complex formation.','Add complexes to cells.','Incubate for the experiment-specific post-transfection period.']}
-].map(p=>({...p,id:uid(),status:'not-started',date:'',updatedAt:'',steps:p.steps.map(text=>({text,done:false}))}));
-let protocols=load(K,samples),logs=load(L,[]);
-function load(k,f){try{return JSON.parse(localStorage.getItem(k))||structuredClone(f)}catch{return structuredClone(f)}}
-function save(){localStorage.setItem(K,JSON.stringify(protocols));localStorage.setItem(L,JSON.stringify(logs))}
-const $=id=>document.getElementById(id),esc=s=>(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
-const label=s=>({'not-started':'Not started','in-progress':'In progress','completed':'Completed'}[s]||s);
-const pct=p=>p.steps.length?Math.round(p.steps.filter(x=>x.done).length/p.steps.length*100):(p.status==='completed'?100:0);
-function toast(t){$('toast').textContent=t;$('toast').classList.add('show');setTimeout(()=>$('toast').classList.remove('show'),2200)}
-function log(title,detail){logs.unshift({id:uid(),title,detail,time:new Date().toISOString()});logs=logs.slice(0,250);save()}
-function go(page){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.nav').forEach(x=>x.classList.toggle('active',x.dataset.page===page));$(page+'Page').classList.add('active');$('pageTitle').textContent={home:'Good lab day, Nini ✨',protocols:'Your protocol library',logs:'Activity logs'}[page];render();scrollTo({top:0,behavior:'smooth'})}
-function render(){renderHome();renderProtocols();renderLogs()}
-function renderHome(){$('totalStat').textContent=protocols.length;$('progressStat').textContent=protocols.filter(p=>p.status==='in-progress').length;$('completeStat').textContent=protocols.filter(p=>p.status==='completed').length;$('logStat').textContent=logs.length;const r=[...protocols].sort((a,b)=>(b.updatedAt||'').localeCompare(a.updatedAt||'')).slice(0,4);$('recent').innerHTML=r.length?r.map(p=>`<div class="recent-item"><div><h4>${esc(p.title)}</h4><small>${esc(p.category||'Uncategorized')} · ${pct(p)}% complete</small></div><span class="chip ${p.status}">${label(p.status)}</span></div>`).join(''):'<p>No protocols yet.</p>'}
-function renderProtocols(){const q=$('search').value.trim().toLowerCase(),f=$('filter').value;const items=protocols.filter(p=>{const t=[p.title,p.category,p.notes,p.materials,...p.steps.map(s=>s.text)].join(' ').toLowerCase();return(!q||t.includes(q))&&(f==='all'||p.status===f)});$('empty').classList.toggle('hidden',items.length>0);$('grid').innerHTML=items.map(p=>`<article class="card"><div class="card-top"><span class="category">${esc(p.category||'Uncategorized')}</span><span class="chip ${p.status}">${label(p.status)}</span></div><h3>${esc(p.title)}</h3><p>${p.notes?esc(p.notes.slice(0,120))+(p.notes.length>120?'…':''):'No personal notes yet.'}</p><div class="bar"><div style="width:${pct(p)}%"></div></div><div class="card-foot"><span>${p.steps.filter(s=>s.done).length}/${p.steps.length} steps complete</span><button class="edit" data-edit="${p.id}">Open</button></div></article>`).join('');document.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>openModal(b.dataset.edit))}
-function renderLogs(){$('timeline').innerHTML=logs.length?logs.map(x=>`<div class="log"><div class="dot"></div><div class="log-content"><strong>${esc(x.title)}</strong><p>${esc(x.detail)}</p><small>${new Date(x.time).toLocaleString()}</small></div></div>`).join(''):'<p>No activity has been recorded yet.</p>'}
-function addStep(text='',done=false){const row=document.createElement('div');row.className='step';row.innerHTML=`<div class="num">${$('steps').children.length+1}</div><div><textarea rows="2" class="stepText" placeholder="Describe this step...">${esc(text)}</textarea><label class="done-label"><input class="stepDone" type="checkbox" ${done?'checked':''}> Step completed</label></div><button type="button" class="remove">×</button>`;row.querySelector('.remove').onclick=()=>{row.remove();[...$('steps').children].forEach((r,i)=>r.querySelector('.num').textContent=i+1)};$('steps').appendChild(row)}
-function openModal(id=''){const p=id?protocols.find(x=>x.id===id):null;$('form').reset();$('steps').innerHTML='';$('pid').value=p?.id||'';$('mode').textContent=p?'EDIT PROTOCOL':'NEW PROTOCOL';$('modalTitle').textContent=p?p.title:'Create a new protocol';$('title').value=p?.title||'';$('status').value=p?.status||'not-started';$('category').value=p?.category||'';$('date').value=p?.date||'';$('materials').value=p?.materials||'';$('notes').value=p?.notes||'';(p?.steps?.length?p.steps:[{text:'',done:false}]).forEach(s=>addStep(s.text,s.done));$('delete').style.visibility=p?'visible':'hidden';$('modal').classList.add('open');document.body.style.overflow='hidden'}
-function closeModal(){$('modal').classList.remove('open');document.body.style.overflow=''}
-$('form').onsubmit=e=>{e.preventDefault();const id=$('pid').value;const p={id:id||uid(),title:$('title').value.trim(),status:$('status').value,category:$('category').value.trim(),date:$('date').value,materials:$('materials').value.trim(),notes:$('notes').value.trim(),updatedAt:new Date().toISOString(),steps:[...document.querySelectorAll('.step')].map(r=>({text:r.querySelector('.stepText').value.trim(),done:r.querySelector('.stepDone').checked})).filter(s=>s.text)};const i=protocols.findIndex(x=>x.id===id);if(i>=0){protocols[i]=p;log('Protocol updated',`${p.title} was edited and saved.`)}else{protocols.unshift(p);log('Protocol created',`${p.title} was added to your library.`)}save();closeModal();render();toast('Protocol saved ✨')};
-$('delete').onclick=()=>{const p=protocols.find(x=>x.id===$('pid').value);if(!p||!confirm(`Delete "${p.title}"?`))return;protocols=protocols.filter(x=>x.id!==p.id);log('Protocol deleted',`${p.title} was removed.`);save();closeModal();render();toast('Protocol deleted')};
-$('addStep').onclick=()=>addStep();$('newBtn').onclick=$('homeNewBtn').onclick=()=>openModal();$('close').onclick=closeModal;document.querySelectorAll('[data-close]').forEach(x=>x.onclick=closeModal);document.querySelectorAll('[data-page]').forEach(x=>x.onclick=e=>{e.preventDefault();go(x.dataset.page)});document.querySelectorAll('[data-go]').forEach(x=>x.onclick=()=>go(x.dataset.go));$('search').oninput=renderProtocols;$('filter').onchange=renderProtocols;
-$('clearLogs').onclick=()=>{if(confirm('Clear all activity logs?')){logs=[];save();render();toast('Logs cleared')}};
-$('exportBtn').onclick=()=>{const blob=new Blob([JSON.stringify({protocols,logs,exportedAt:new Date().toISOString()},null,2)],{type:'application/json'}),u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=`glowlab-backup-${new Date().toISOString().slice(0,10)}.json`;a.click();URL.revokeObjectURL(u);log('Backup exported','A JSON backup was downloaded.');render()};
-$('importInput').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const d=JSON.parse(await f.text());if(!Array.isArray(d.protocols))throw 0;protocols=d.protocols;logs=Array.isArray(d.logs)?d.logs:[];log('Backup imported',`${protocols.length} protocols were restored.`);save();render();toast('Backup imported')}catch{alert('This backup could not be read.')}e.target.value=''};
-$('resetBtn').onclick=()=>{if(confirm('Replace current data with the original sample protocols? Export a backup first if needed.')){protocols=structuredClone(samples);logs=[];save();render();toast('Sample data restored')}};
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal()});render();
+{
+  "protocols": [
+    {
+      "id": "18dcf073-7c23-4a02-a193-828f01faf001",
+      "title": "HC POTS STRETCH",
+      "status": "not-started",
+      "category": "Clinical data analysis and presentation",
+      "date": "",
+      "materials": "",
+      "notes": "",
+      "updatedAt": "2026-07-28T03:33:50.848Z",
+      "steps": []
+    },
+    {
+      "id": "b9b4a0c5-ab1c-4955-b13c-d3d5d87d83ca",
+      "title": "Fermentations",
+      "status": "not-started",
+      "category": "Pipetting and Analysis",
+      "date": "",
+      "materials": "",
+      "notes": "",
+      "updatedAt": "2026-07-28T03:33:10.690Z",
+      "steps": []
+    },
+    {
+      "id": "6af005b8-6e65-4a07-978d-4060fa297252",
+      "title": "Cheek cells",
+      "status": "not-started",
+      "category": "Microscopic and Analysis",
+      "date": "",
+      "materials": "",
+      "notes": "",
+      "updatedAt": "2026-07-28T03:30:17.210Z",
+      "steps": []
+    },
+    {
+      "title": "ZymoPURE Maxiprep — Plasmid DNA Purification",
+      "category": "Plasmid Purification",
+      "materials": "ZymoPURE P1, P2, P3\nBinding Buffer\nWash 1\nWash 2\nV-PX Column Assembly\nElution Buffer",
+      "notes": "Based on the photographed maxiprep pages. Confirm all volumes, times, centrifugation settings, and handwritten notes against the approved SOP before use.",
+      "steps": [
+        {
+          "text": "Pellet the bacterial culture and discard supernatant.",
+          "done": false
+        },
+        {
+          "text": "Resuspend the pellet completely in cold P1.",
+          "done": false
+        },
+        {
+          "text": "Add P2 and mix immediately by gentle inversion. Do not vortex.",
+          "done": false
+        },
+        {
+          "text": "Add P3 and invert until neutralization is complete.",
+          "done": false
+        },
+        {
+          "text": "Clarify the lysate using the syringe filter assembly.",
+          "done": false
+        },
+        {
+          "text": "Add binding buffer to the cleared lysate and mix.",
+          "done": false
+        },
+        {
+          "text": "Load onto the V-PX column assembly.",
+          "done": false
+        },
+        {
+          "text": "Perform Wash 1 and Wash 2 steps.",
+          "done": false
+        },
+        {
+          "text": "Dry-spin and elute purified plasmid DNA.",
+          "done": false
+        }
+      ],
+      "id": "242835f4-96d2-4906-8402-eab9ba979077",
+      "status": "not-started",
+      "date": "",
+      "updatedAt": ""
+    },
+    {
+      "title": "E. coli Transformation",
+      "category": "Transformation",
+      "materials": "Competent E. coli cells\nPlasmid DNA\nSOC medium\nLB agar plate\nAppropriate antibiotic\nSterile beads",
+      "notes": "The photographed protocol uses DH5α and a heat-shock workflow. Verify the competent-cell supplier instructions and local biosafety SOP.",
+      "steps": [
+        {
+          "text": "Chill plasmid DNA and thaw competent cells on ice.",
+          "done": false
+        },
+        {
+          "text": "Add competent cells to the chilled plasmid tube.",
+          "done": false
+        },
+        {
+          "text": "Mix gently without vortexing.",
+          "done": false
+        },
+        {
+          "text": "Incubate on ice.",
+          "done": false
+        },
+        {
+          "text": "Heat shock, then return to ice.",
+          "done": false
+        },
+        {
+          "text": "Add SOC medium.",
+          "done": false
+        },
+        {
+          "text": "Recover cells under the specified incubation conditions.",
+          "done": false
+        },
+        {
+          "text": "Plate onto the correctly labelled selective agar plate.",
+          "done": false
+        }
+      ],
+      "id": "874d5052-af4c-455f-87a9-e9a07a19e42d",
+      "status": "not-started",
+      "date": "",
+      "updatedAt": ""
+    },
+    {
+      "title": "Making LB Broth",
+      "category": "Media Preparation",
+      "materials": "LB broth powder\nddH2O\n1 L glass bottle",
+      "notes": "The photographed local copy notes that pH adjustment is not needed. Confirm this with the lab manager before relying on it.",
+      "steps": [
+        {
+          "text": "Collect and label a 1 L glass bottle.",
+          "done": false
+        },
+        {
+          "text": "Measure water into the bottle.",
+          "done": false
+        },
+        {
+          "text": "Add the required LB broth powder.",
+          "done": false
+        },
+        {
+          "text": "Swirl to mix.",
+          "done": false
+        },
+        {
+          "text": "Autoclave and cool on the bench.",
+          "done": false
+        }
+      ],
+      "id": "102bf53e-cc5c-49fd-9796-d6a92e78241b",
+      "status": "not-started",
+      "date": "",
+      "updatedAt": ""
+    },
+    {
+      "title": "Making LB Agar Plates",
+      "category": "Media Preparation",
+      "materials": "LB agar powder\nddH2O\nAntibiotic if required\nPetri dishes\nStir bar",
+      "notes": "The photographed protocol indicates adding antibiotic after the medium cools. Verify antibiotic identity, concentration, and heat sensitivity.",
+      "steps": [
+        {
+          "text": "Prepare labelled glass bottles and add stir bars.",
+          "done": false
+        },
+        {
+          "text": "Measure water and LB agar powder.",
+          "done": false
+        },
+        {
+          "text": "Mix gently.",
+          "done": false
+        },
+        {
+          "text": "Autoclave and cool while stirring.",
+          "done": false
+        },
+        {
+          "text": "Add antibiotic after cooling when required.",
+          "done": false
+        },
+        {
+          "text": "Pour agar into sterile Petri dishes.",
+          "done": false
+        },
+        {
+          "text": "Allow plates to solidify and store agar-side up.",
+          "done": false
+        }
+      ],
+      "id": "76b9be2e-5d5a-408a-959b-7085b9414a04",
+      "status": "not-started",
+      "date": "",
+      "updatedAt": ""
+    },
+    {
+      "title": "ZymoPURE Miniprep — Plasmid DNA Purification",
+      "category": "Plasmid Purification",
+      "materials": "ZymoPURE P1, P2, P3\nBinding Buffer\nWash 1\nWash 2\nII-PX Spin Column\nElution Buffer",
+      "notes": "Organized from the photographed miniprep centrifugation pages. Preserve the current manufacturer pages as the source of truth.",
+      "steps": [
+        {
+          "text": "Pellet bacterial culture and discard supernatant.",
+          "done": false
+        },
+        {
+          "text": "Resuspend the pellet in cold P1.",
+          "done": false
+        },
+        {
+          "text": "Add P2 and mix by gentle inversion.",
+          "done": false
+        },
+        {
+          "text": "Add P3 and invert until neutralization is complete.",
+          "done": false
+        },
+        {
+          "text": "Centrifuge the neutralized lysate.",
+          "done": false
+        },
+        {
+          "text": "Transfer the required supernatant volume.",
+          "done": false
+        },
+        {
+          "text": "Add binding buffer and mix.",
+          "done": false
+        },
+        {
+          "text": "Load onto the spin column.",
+          "done": false
+        },
+        {
+          "text": "Perform Wash 1 and Wash 2 steps.",
+          "done": false
+        },
+        {
+          "text": "Dry-spin and elute DNA.",
+          "done": false
+        }
+      ],
+      "id": "8a98293c-9c22-4f8f-aebc-1a2866d5241a",
+      "status": "not-started",
+      "date": "",
+      "updatedAt": ""
+    },
+    {
+      "title": "Zymo DNA Gel Purification",
+      "category": "DNA Cleanup",
+      "materials": "DNA Wash Buffer\nADB\nZymo-Spin Column\nCollection Tube\nDNA Elution Buffer",
+      "notes": "The attached protocol shows a gel-slice dissolution and spin-column cleanup workflow. Confirm current kit ratios and incubation conditions.",
+      "steps": [
+        {
+          "text": "Excise the desired DNA fragment from the gel.",
+          "done": false
+        },
+        {
+          "text": "Add the required volume of agarose dissolving buffer.",
+          "done": false
+        },
+        {
+          "text": "Incubate until the gel slice is completely dissolved.",
+          "done": false
+        },
+        {
+          "text": "Transfer the melted gel solution to a spin column.",
+          "done": false
+        },
+        {
+          "text": "Centrifuge and discard flow-through.",
+          "done": false
+        },
+        {
+          "text": "Wash the column and repeat the wash.",
+          "done": false
+        },
+        {
+          "text": "Add elution buffer and centrifuge to recover DNA.",
+          "done": false
+        }
+      ],
+      "id": "a941954c-de54-4cc2-b2f1-8735c0d7674e",
+      "status": "not-started",
+      "date": "",
+      "updatedAt": ""
+    },
+    {
+      "title": "Kanamycin Stock and Working Solutions",
+      "category": "Reagent Preparation",
+      "materials": "Kanamycin sulfate\nddH2O\n0.22 µm filter\nSterile bottle and tubes",
+      "notes": "The photographed page includes a 50 mg/mL stock and 50 µg/mL working solution. Confirm local storage, labeling, and sterility requirements.",
+      "steps": [
+        {
+          "text": "Prepare kanamycin stock at the documented concentration.",
+          "done": false
+        },
+        {
+          "text": "Bring to final volume and mix.",
+          "done": false
+        },
+        {
+          "text": "Filter sterilize.",
+          "done": false
+        },
+        {
+          "text": "Aliquot, label, and store per lab SOP.",
+          "done": false
+        },
+        {
+          "text": "Prepare working solution by dilution of the stock.",
+          "done": false
+        }
+      ],
+      "id": "41b398c3-ca71-4c58-afd5-a5a1ed9f04f0",
+      "status": "not-started",
+      "date": "",
+      "updatedAt": ""
+    },
+    {
+      "title": "Target Guide Sequence Cloning",
+      "category": "CRISPR / Cloning",
+      "materials": "Target oligos\nLentiviral CRISPR plasmid\nBsmBI\nFastAP\nT4 ligation buffer\nT4 PNK\nQuick Ligase\nCompetent bacteria",
+      "notes": "Based on the photographed Zhang Lab GeCKO guide-cloning page with handwritten local changes. Confirm vector, strain, program, and all annotations before use.",
+      "steps": [
+        {
+          "text": "Design and order target oligos with the required overhangs.",
+          "done": false
+        },
+        {
+          "text": "Digest and dephosphorylate the vector.",
+          "done": false
+        },
+        {
+          "text": "Gel-purify the correct vector band.",
+          "done": false
+        },
+        {
+          "text": "Phosphorylate and anneal oligo pairs.",
+          "done": false
+        },
+        {
+          "text": "Dilute annealed oligos as required.",
+          "done": false
+        },
+        {
+          "text": "Set up ligation and vector-only control.",
+          "done": false
+        },
+        {
+          "text": "Transform into the appropriate bacterial strain.",
+          "done": false
+        }
+      ],
+      "id": "f96fe877-23fe-43ea-b0fd-10d8fc87989c",
+      "status": "not-started",
+      "date": "",
+      "updatedAt": ""
+    },
+    {
+      "title": "TransIT-293 Plasmid DNA Transfection",
+      "category": "Cell Culture",
+      "materials": "HEK 293 cells\nHigh-purity plasmid DNA\nTransIT-293 reagent\nSerum-free medium\nComplete growth medium",
+      "notes": "Use the current full manufacturer protocol and optimize for the specific HEK 293 subtype and vessel size.",
+      "steps": [
+        {
+          "text": "Confirm healthy cells and suitable confluence.",
+          "done": false
+        },
+        {
+          "text": "Use purified, low-endotoxin DNA.",
+          "done": false
+        },
+        {
+          "text": "Prepare reagent–DNA complexes in serum-free medium.",
+          "done": false
+        },
+        {
+          "text": "Avoid serum and antibiotics during complex formation.",
+          "done": false
+        },
+        {
+          "text": "Add complexes to cells.",
+          "done": false
+        },
+        {
+          "text": "Incubate for the experiment-specific post-transfection period.",
+          "done": false
+        }
+      ],
+      "id": "5251fa76-171c-44e7-9cd6-451f4c383f91",
+      "status": "not-started",
+      "date": "",
+      "updatedAt": ""
+    },
+    {
+      "title": "PCR and Culture Maintenance",
+      "category": "Pipetting, DNA Amplification, and Culture Maintenance",
+      "materials": "DNA template\nForward and reverse primers\nTaq DNA polymerase\ndNTPs\nPCR buffer\nMagnesium chloride (MgCl₂)\nNuclease-free water\nPCR tubes\nMicropipettes and sterile filter tips\nThermal cycler",
+      "notes": "1) What does PCR stand for?\nPCR stands for Polymerase Chain Reaction. It is a laboratory technique used to amplify a specific DNA sequence, producing millions of copies from a small amount of genetic material.\n\n2) How does PCR function?\nPCR works like a molecular copy machine. It repeatedly heats and cools a reaction mixture so that a selected DNA region can be copied over multiple cycles.\n\n3) What is required for PCR?\nPCR requires a DNA template, forward and reverse primers, Taq DNA polymerase, dNTPs, PCR buffer, magnesium ions, and nuclease-free water.\n\n4) What are the main PCR stages?\nDenaturation: The double-stranded DNA separates into single strands, usually at 94–98°C.\nAnnealing: Primers bind to complementary target sequences, usually at 50–65°C.\nExtension: Taq polymerase adds nucleotides to the 3′ end of each primer, usually at 72°C.\nThese stages are commonly repeated for approximately 25–40 cycles.\n\n5) How can PCR results be viewed?\nPCR products may be examined using gel electrophoresis and a DNA-binding fluorescent dye. Real-time PCR (qPCR) uses fluorescent dyes or probes to detect and measure amplification during the reaction.\n\n6) What can PCR detect?\nPCR can be used to detect infectious agents, inherited genetic changes, gene mutations, tumour-associated genetic changes, and small amounts of forensic DNA.\n\nCulture maintenance note:\nFollow the approved laboratory SOP for the specific organism or cell line. Use aseptic technique, label cultures clearly, monitor growth and contamination, document passage or culture dates, and dispose of biological materials according to local biosafety procedures.",
+      "steps": [
+        {
+          "text": "Prepare and label the PCR tubes and organize all required reagents according to the approved laboratory protocol.",
+          "done": false
+        },
+        {
+          "text": "Prepare the PCR reaction mixture using the validated reagent concentrations and volumes.",
+          "done": false
+        },
+        {
+          "text": "Place the tubes in the thermal cycler and select the validated PCR program.",
+          "done": false
+        },
+        {
+          "text": "Run the denaturation, annealing, and extension cycles.",
+          "done": false
+        },
+        {
+          "text": "Analyze the amplified DNA using the laboratory’s approved detection method.",
+          "done": false
+        },
+        {
+          "text": "Record results, observations, and any deviations from the approved protocol.",
+          "done": false
+        },
+        {
+          "text": "Maintain cultures using aseptic technique and the approved organism- or cell-specific SOP.",
+          "done": false
+        }
+      ],
+      "id": "23809293-eec4-4f2d-a7e3-5b64c280dfcc",
+      "status": "in-progress",
+      "date": "",
+      "updatedAt": "2026-07-30T04:21:41.478272Z"
+    }
+  ],
+  "logs": [
+    {
+      "id": "c7c82b40-67a6-4378-86b9-1841521390c6",
+      "title": "Protocol created",
+      "detail": "HC POTS STRETCH was added to your library.",
+      "time": "2026-07-28T03:33:50.848Z"
+    },
+    {
+      "id": "8b2d8c78-748b-4d80-8924-929e673161c3",
+      "title": "Protocol created",
+      "detail": "Fermentations was added to your library.",
+      "time": "2026-07-28T03:33:10.690Z"
+    },
+    {
+      "id": "73a1631a-39ac-4b8e-bf11-5ad0cddb5e69",
+      "title": "Protocol created",
+      "detail": "Cheek cells was added to your library.",
+      "time": "2026-07-28T03:30:17.211Z"
+    }
+  ],
+  "exportedAt": "2026-07-30T04:21:41.478457Z"
+}
